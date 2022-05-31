@@ -1,13 +1,8 @@
-# Online Python compiler (interpreter) to run Python online.
-# Write Python 3 code in this online editor and run it.
-# Get started with interactive Python!
-# Supports Python Modules: builtins, math,pandas, scipy 
-# matplotlib.pyplot, numpy, operator, processing, pygal, random, 
-# re, string, time, turtle, urllib.request
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
-import scipy as sp
+from openpyxl import load_workbook
+from openpyxl import Workbook
+
 
 # python implementation of particle swarm optimization (PSO)
 # minimizing rastrigin and sphere function
@@ -20,14 +15,19 @@ import sys     # max float
 wb = load_workbook('./Dane.xlsx')
 
 rho = []
+T = []
+e_dot = []
 
 for ws in wb.worksheets:
-    rho_values = [ws.cell(i, 1).value for i in range(2, 100002)]
-    T.append(ws.cell(6, 1))
-    e_dot.append(ws.cell(6, 2))
-    rho.append(rho_values)
+    rho_test = [ws.cell(i, 2).value for i in range(2, 100002)]
+    T.append(ws.cell(1, 7).value)
+    e_dot.append(ws.cell(2, 7).value)
+    rho.append(rho_test)
 
-def sigma_p(T=898.0, t_max=1.0, e_dot=1.0, a):
+print(len(rho[0]))
+print(len(np.linspace(0.0, 1, 100000)))
+
+def sigma_p(a, T, t_max, e_dot):
     global t_cr
     step = 0.001
     # e_dot = 1.0
@@ -61,16 +61,16 @@ def sigma_p(T=898.0, t_max=1.0, e_dot=1.0, a):
     # a13 = 0.167
 
     tau = 1e6 * mu * b ** 2 * 0.5
-    l = a1 * 1e-3 / (Z ** a[12])
+    l = a[0] * 1e-3 / (Z ** a[12])
     A1 = 1 / b / l
     A2 = a[1] * e_dot ** (-a[8]) * math.exp(-a[2] * 1e3 / R / T)
     A3 = a[3] * 3e10 * tau / D * math.exp(-a[4] * 1e3 / R / T)
     rho_cr = -a[10] * 1e13 + a[11] * 1e13 * Z ** a[9]
     is_critical = False
 
-    def drho_dt():
-        global is_critical
-        global t_cr
+    def drho_dt(is_critical, t_cr):
+        # global is_critical
+        # global t_cr
         if not is_critical:
             if rho > rho_cr:
                 t_cr = t
@@ -89,13 +89,14 @@ def sigma_p(T=898.0, t_max=1.0, e_dot=1.0, a):
         result = A1 * e_dot - A2 * e_dot * rho - A3 * rho ** a[7] * X
         return result
 
-
     while True:
-        rho = rho + step * drho_dt()
+        rho = rho + step * drho_dt(is_critical, t_cr)
         t += step
         rho_values.append(rho)
         if t > t_max:
             break
+    print(len(rho_values))
+    return rho_values
 
 
 #-------fitness functions---------
@@ -113,8 +114,8 @@ def fitness_sphere(position):
     fitnessVal = 0.0
     for i in range(len(position)):
         xi = position[i]
-        fitnessVal += (xi*xi);
-    return fitnessVal;
+        fitnessVal += (xi*xi)
+    return fitnessVal
     
 #objective function
 def objective(pos):
@@ -122,8 +123,8 @@ def objective(pos):
     for i in range(len(T)):
         t = np.linspace(0.0, e_dot[i], 100000)
         for j in range(len(t)):
-            err_squared = (sigma_test[i][j] - sigma_p(T[i], 1/e_dot[i], e_dot[i], pos)) ** 2
-            err_relative = err_squared / sigma_test[i][j]
+            err_squared = (rho[i][j] - sigma_p(pos, T[i], 1/e_dot[i], e_dot[i])[j]) ** 2
+            err_relative = err_squared / rho[i][j]
             sum = sum + err_relative
     return sum
 
@@ -305,11 +306,19 @@ def pso(fitness, max_iter, n, dim, minx, maxx):
  
 # print("\nEnd particle swarm for sphere function\n")
 
+
 dim = 13
 fitness = objective
-cons_min = [0, 10, 1, 0, 10, 0.1, 1, 10, 0, 0, 0, 0, 0]
-cons_max = [10, 25000, 100, 0.1, 500, 1, 10, 10, 10, 1, 1, 0.1, 1]
+cons_min = [0.05, 15000, 50, 0.01, 100, 1.5, 0, 0.2, 0.05, 0.1, 0, 0.00001, 0.01]
+cons_max = [10, 22000, 100, 0.09, 150, 2.5, 0, 0.8, 0.25, 0.9, 0, 0.00009, 0.09]
 num_particles = 50
 max_iter = 100
 best_position = pso(fitness, max_iter, num_particles, dim, cons_min, cons_max)
+print("\nPSO completed\n")
+print("\nBest solution found:")
+print(["%.6f" % best_position[k] for k in range(dim)])
+
 fitness_val = fitness(best_position)
+print("fitness of best solution = %.6f" % fitness_val)
+
+print("\nEnd particle swarm for sphere function\n")
